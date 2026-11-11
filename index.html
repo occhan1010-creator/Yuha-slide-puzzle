@@ -68,14 +68,14 @@
   .tile .bignum{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     font-size:30px; font-weight:800; color:#ffd9e9;}
   .tile.numonly .face{background-image:none !important; background-color:#33334d;}
-  .complete-overlay{position:absolute; inset:0; display:none; flex-direction:column;
-    align-items:center; justify-content:flex-end; z-index:5;}
-  .complete-overlay.show{display:flex;}
+  .complete-overlay{position:absolute; inset:0; display:none; z-index:5;}
+  .complete-overlay.show{display:block;}
   .complete-overlay img.full{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
-  .complete-box{position:relative; width:100%; background:rgba(10,10,16,.82); padding:14px 12px 16px;
-    text-align:center;}
-  .complete-box .big{font-size:19px; font-weight:800; margin-bottom:2px;}
-  .complete-box .moves-line{color:var(--accent2); font-size:14px; margin-bottom:12px;}
+  .complete-panel{display:none; margin-top:16px; background:var(--panel); border:1px solid var(--line);
+    border-radius:14px; padding:16px 14px; text-align:center;}
+  .complete-panel.show{display:block;}
+  .complete-panel .big{font-size:19px; font-weight:800; margin-bottom:2px;}
+  .complete-panel .moves-line{color:var(--accent2); font-size:14px; margin-bottom:12px;}
   .toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px);
     background:#2c2c3e; color:#fff; border:1px solid var(--line); padding:10px 16px; border-radius:999px;
     font-size:13px; opacity:0; pointer-events:none; transition:.25s; z-index:50; white-space:nowrap;}
@@ -139,6 +139,12 @@
     <div class="row-gap" style="margin-top:14px;">
       <button class="btn ghost small" id="btn-reshuffle">シャッフルし直す</button>
       <button class="btn ghost small" id="btn-game-home">← ホームへ戻る</button>
+    </div>
+    <div class="complete-panel" id="complete-panel">
+      <div class="big">🎉パズル完成！🎉</div>
+      <div class="moves-line" id="complete-moves"></div>
+      <button class="btn small" id="btn-again">もう一度あそぶ</button>
+      <button class="btn ghost small" id="btn-complete-home" style="margin-top:8px;">ホームへ戻る</button>
     </div>
   </section>
 
@@ -356,21 +362,12 @@
       })(t);
       board.appendChild(d); tileEls[t] = d;
     }
-    // 完成オーバーレイ
+    // 完成表示は枠なし全面画像のみ（文字・ボタンは盤面の下のパネルに出す）
     var ov = document.createElement("div"); ov.className = "complete-overlay"; ov.id = "complete-overlay";
     if (mode !== "number" && currentImage){
       var full = document.createElement("img"); full.className = "full"; full.src = currentImage; full.alt = "";
       ov.appendChild(full);
     }
-    var box = document.createElement("div"); box.className = "complete-box";
-    box.innerHTML = "<div class='big'>🎉パズル完成！🎉</div><div class='moves-line' id='complete-moves'></div>";
-    var again = document.createElement("button"); again.className = "btn small"; again.textContent = "もう一度あそぶ";
-    again.addEventListener("click", startGame);
-    var home = document.createElement("button"); home.className = "btn ghost small"; home.textContent = "ホームへ戻る";
-    home.style.marginTop = "8px";
-    home.addEventListener("click", function(){ playing = false; show("home"); });
-    box.appendChild(again); box.appendChild(home);
-    ov.appendChild(box);
     board.appendChild(ov);
     layoutTiles();
   }
@@ -391,12 +388,17 @@
     if (isSolved()){
       playing = false;
       $("complete-moves").textContent = moves + "手で解けた";
-      setTimeout(function(){ $("complete-overlay").classList.add("show"); }, 220);
+      setTimeout(function(){
+        $("complete-overlay").classList.add("show");
+        var p = $("complete-panel"); p.classList.add("show");
+        p.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 220);
     }
   }
   function startGame(){
     var ent = selectedEntry();
     currentImage = ent ? ent.src : null;
+    $("complete-panel").classList.remove("show");
     moves = 0; $("move-count").textContent = "0";
     $("game-mode-label").textContent = MODE_LABEL[mode];
     shuffle();
@@ -415,9 +417,12 @@
   });
   $("btn-start").addEventListener("click", startGame);
   $("btn-reshuffle").addEventListener("click", function(){
+    $("complete-panel").classList.remove("show");
     moves = 0; $("move-count").textContent = "0";
     shuffle(); buildBoard(); playing = true;
   });
+  $("btn-again").addEventListener("click", startGame);
+  $("btn-complete-home").addEventListener("click", function(){ playing = false; show("home"); });
   $("btn-game-home").addEventListener("click", function(){ playing = false; show("home"); });
   $("btn-to-admin").addEventListener("click", function(){ renderAdmin(); show("admin"); });
   $("btn-admin-back").addEventListener("click", function(){ renderHome(); show("home"); });
