@@ -180,34 +180,8 @@
     clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.classList.remove("show"); }, 2200);
   }
 
-  /* ---------- サンプル画像（内蔵） ---------- */
-  function makeSample(){
-    var c = document.createElement("canvas"); c.width = 540; c.height = 900;
-    var g = c.getContext("2d");
-    var grad = g.createLinearGradient(0, 0, 540, 900);
-    grad.addColorStop(0, "#3b2d5c"); grad.addColorStop(.55, "#7a3d6e"); grad.addColorStop(1, "#e2703a");
-    g.fillStyle = grad; g.fillRect(0, 0, 540, 900);
-    g.globalAlpha = .5; g.fillStyle = "#ffd166";
-    g.beginPath(); g.arc(430, 150, 62, 0, 7); g.fill();
-    g.globalAlpha = .85; g.fillStyle = "#fff3f8";
-    for (var i = 0; i < 42; i++){
-      g.beginPath();
-      g.arc(Math.random() * 540, Math.random() * 900, 2 + Math.random() * 3, 0, 7); g.fill();
-    }
-    g.globalAlpha = 1; g.fillStyle = "#2b2140";
-    g.beginPath(); g.moveTo(0, 900); g.lineTo(180, 560); g.lineTo(330, 900); g.fill();
-    g.fillStyle = "#241a38";
-    g.beginPath(); g.moveTo(220, 900); g.lineTo(400, 620); g.lineTo(540, 900); g.fill();
-    g.fillStyle = "#ffffff"; g.font = "800 44px sans-serif"; g.textAlign = "center";
-    g.fillText("SAMPLE", 270, 460);
-    g.font = "600 22px sans-serif"; g.fillStyle = "#ffe3ef";
-    g.fillText("すきな画像を上げて遊んでね", 270, 500);
-    return c.toDataURL("image/jpeg", .85);
-  }
-  var SAMPLE_SRC = makeSample();
   function allEntries(){
-    var list = [{ id: "sample", src: SAMPLE_SRC, name: "サンプル", builtin: true }];
-    return list.concat(stock);
+    return stock.slice();
   }
 
   /* ---------- ストック ---------- */
@@ -231,7 +205,7 @@
   function renderHome(){
     var row = $("stock-row"); row.innerHTML = "";
     var list = allEntries();
-    if (!list.some(function(x){ return x.id === selectedId; })) selectedId = list[0].id;
+    if (list.length && !list.some(function(x){ return x.id === selectedId; })) selectedId = list[0].id;
     list.forEach(function(ent){
       var d = document.createElement("div");
       d.className = "stock-item" + (ent.id === selectedId ? " selected" : "");
@@ -241,7 +215,7 @@
       d.addEventListener("click", function(){ selectedId = ent.id; renderHome(); });
       row.appendChild(d);
     });
-    for (var k = list.length; k < 4; k++){
+    for (var k = list.length; k < 3; k++){
       var e = document.createElement("div"); e.className = "stock-empty";
       e.textContent = k === list.length ? "管理画面から追加できます" : "";
       row.appendChild(e);
@@ -397,6 +371,11 @@
   }
   function startGame(){
     var ent = selectedEntry();
+    if (!ent && mode !== "number"){
+      toast("まず管理画面から画像を追加してください");
+      renderAdmin(); show("admin");
+      return;
+    }
     currentImage = ent ? ent.src : null;
     $("complete-panel").classList.remove("show");
     moves = 0; $("move-count").textContent = "0";
