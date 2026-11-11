@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>絵合わせスライドパズル 3×5</title>
+<style>
+  :root{
+    --bg:#14141c; --panel:#1e1e2a; --panel2:#262635; --line:#3a3a4d;
+    --text:#f2f0f5; --muted:#a7a3b8; --accent:#ff7eb6; --accent2:#ffb3d1;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; background:var(--bg); color:var(--text);
+    font-family:"Hiragino Kaku Gothic ProN","Noto Sans JP",system-ui,sans-serif;}
+  body{min-height:100dvh; display:flex; flex-direction:column; align-items:center;}
+  .wrap{width:100%; max-width:430px; padding:16px 14px 32px; margin:0 auto;}
+  h1{font-size:20px; margin:6px 0 2px; letter-spacing:.02em;}
+  .sub{color:var(--muted); font-size:12.5px; margin:0 0 14px;}
+  .screen{display:none;}
+  .screen.active{display:block;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px; margin-bottom:14px;}
+  .card h2{font-size:14px; margin:0 0 10px; color:var(--accent2); letter-spacing:.04em;}
+  .stock-row{display:flex; gap:10px;}
+  .stock-item{flex:1; position:relative; border-radius:10px; overflow:hidden;
+    border:2px solid var(--line); cursor:pointer; background:#000; aspect-ratio:9/15;}
+  .stock-item img{width:100%; height:100%; object-fit:cover; display:block;}
+  .stock-item.selected{border-color:var(--accent); box-shadow:0 0 0 2px rgba(255,126,182,.35);}
+  .stock-item .tag{position:absolute; left:0; right:0; bottom:0; font-size:10.5px;
+    background:rgba(0,0,0,.62); color:#fff; padding:3px 4px; text-align:center;}
+  .stock-empty{flex:1; border:2px dashed var(--line); border-radius:10px; aspect-ratio:9/15;
+    display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:11px;
+    text-align:center; padding:6px;}
+  .modes{display:flex; gap:8px;}
+  .mode-btn{flex:1; padding:11px 4px; border-radius:10px; border:1px solid var(--line);
+    background:var(--panel2); color:var(--text); font-size:13px; cursor:pointer; text-align:center;}
+  .mode-btn.selected{border-color:var(--accent); background:rgba(255,126,182,.14); color:#fff;}
+  .btn{display:block; width:100%; padding:14px; border:none; border-radius:12px;
+    background:var(--accent); color:#22131b; font-size:16px; font-weight:700; cursor:pointer;}
+  .btn:active{transform:scale(.99);}
+  .btn.ghost{background:var(--panel2); color:var(--text); border:1px solid var(--line); font-weight:600;}
+  .btn.small{padding:10px; font-size:13.5px;}
+  .btn:disabled{opacity:.45;}
+  .row-gap{display:flex; flex-direction:column; gap:10px;}
+  .note{font-size:12px; color:var(--muted); line-height:1.6; margin:8px 0 0;}
+  .admin-item{display:flex; gap:10px; align-items:center; background:var(--panel2);
+    border:1px solid var(--line); border-radius:10px; padding:8px; margin-bottom:8px;}
+  .admin-item img{width:42px; height:70px; object-fit:cover; border-radius:6px; background:#000;}
+  .admin-item .grow{flex:1; font-size:13px;}
+  .del-btn{background:#3a2430; color:#ff9dbf; border:1px solid #5c3549; border-radius:8px;
+    padding:8px 10px; font-size:12.5px; cursor:pointer;}
+  input[type=file]{display:none;}
+  .game-head{display:flex; justify-content:space-between; align-items:baseline; margin:2px 0 10px;}
+  .moves{font-size:15px;}
+  .moves b{font-size:20px; color:var(--accent2);}
+  .board-wrap{display:flex; justify-content:center;}
+  #board{position:relative; width:min(92vw, 330px); aspect-ratio:9/15; background:#0a0a10;
+    border-radius:10px; overflow:hidden; touch-action:manipulation; user-select:none;}
+  .tile{position:absolute; width:33.3333%; height:20%; padding:1.5px; cursor:pointer;
+    transition:transform .16s ease; will-change:transform;}
+  .tile .face{width:100%; height:100%; border-radius:6px; overflow:hidden; position:relative;
+    border:1.5px solid rgba(255,255,255,.55); background-color:#2b2b3a;
+    background-repeat:no-repeat;}
+  .tile.blank{visibility:hidden; pointer-events:none;}
+  .tile .num{position:absolute; right:4px; bottom:2px; font-size:15px; font-weight:800;
+    color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.9), 0 0 6px rgba(0,0,0,.6);}
+  .tile .bignum{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:30px; font-weight:800; color:#ffd9e9;}
+  .tile.numonly .face{background-image:none !important; background-color:#33334d;}
+  .complete-overlay{position:absolute; inset:0; display:none; flex-direction:column;
+    align-items:center; justify-content:flex-end; z-index:5;}
+  .complete-overlay.show{display:flex;}
+  .complete-overlay img.full{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+  .complete-box{position:relative; width:100%; background:rgba(10,10,16,.82); padding:14px 12px 16px;
+    text-align:center;}
+  .complete-box .big{font-size:19px; font-weight:800; margin-bottom:2px;}
+  .complete-box .moves-line{color:var(--accent2); font-size:14px; margin-bottom:12px;}
+  .toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px);
+    background:#2c2c3e; color:#fff; border:1px solid var(--line); padding:10px 16px; border-radius:999px;
+    font-size:13px; opacity:0; pointer-events:none; transition:.25s; z-index:50; white-space:nowrap;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ホーム画面 -->
+  <section id="screen-home" class="screen active">
+    <h1>絵合わせスライドパズル</h1>
+    <p class="sub">3列 × 5段 ／ 画像を選んで、モードを選んでスタート</p>
+
+    <div class="card">
+      <h2>がぞうをえらぶ</h2>
+      <div class="stock-row" id="stock-row"></div>
+      <p class="note">画像は管理画面からアップロードできます（3種類までストック）。</p>
+    </div>
+
+    <div class="card">
+      <h2>モード</h2>
+      <div class="modes" id="modes">
+        <button class="mode-btn selected" data-mode="image">イラストのみ</button>
+        <button class="mode-btn" data-mode="both">イラスト＋数字</button>
+        <button class="mode-btn" data-mode="number">数字のみ</button>
+      </div>
+    </div>
+
+    <div class="row-gap">
+      <button class="btn" id="btn-start">▶ スタート</button>
+      <button class="btn ghost" id="btn-to-admin">管理画面（画像アップロード）</button>
+    </div>
+  </section>
+
+  <!-- 管理画面 -->
+  <section id="screen-admin" class="screen">
+    <h1>管理画面</h1>
+    <p class="sub">スマホのスクショをそのまま上げてOK。ストック時に 9:15 にトリミングして保存します</p>
+
+    <div class="card">
+      <h2>ストック（最大3種類）</h2>
+      <div id="admin-list"></div>
+      <label class="btn small" for="file-input" style="text-align:center;">＋ 画像をアップロード</label>
+      <input type="file" id="file-input" accept="image/*">
+      <p class="note">アップロードした画像は、この端末のブラウザ内にだけ保存されます。</p>
+    </div>
+
+    <button class="btn ghost" id="btn-admin-back">← ホームへ戻る</button>
+  </section>
+
+  <!-- ゲーム画面 -->
+  <section id="screen-game" class="screen">
+    <div class="game-head">
+      <div class="moves">手数 <b id="move-count">0</b></div>
+      <div class="sub" id="game-mode-label" style="margin:0;"></div>
+    </div>
+    <div class="board-wrap">
+      <div id="board"></div>
+    </div>
+    <div class="row-gap" style="margin-top:14px;">
+      <button class="btn ghost small" id="btn-reshuffle">シャッフルし直す</button>
+      <button class="btn ghost small" id="btn-game-home">← ホームへ戻る</button>
+    </div>
+  </section>
+
+</div>
+<div class="toast" id="toast"></div>
+<script>
+(function(){
+  "use strict";
+  var COLS = 3, ROWS = 5, N = COLS * ROWS, BLANK = N - 1;
+  var LS_KEY = "yuhaSlidePuzzle.stock.v1";
+  var MODE_LABEL = { image: "イラストのみ", both: "イラスト＋数字", number: "数字のみ" };
+
+  var stock = loadStock();          // [{id, src}]
+  var selectedId = null;
+  var mode = "image";
+
+  // ゲーム状態
+  var slotOfTile = [];              // tile番号 -> 現在のスロット
+  var tileAtSlot = [];              // スロット -> tile番号
+  var moves = 0;
+  var playing = false;
+  var currentImage = null;          // dataURL or null(numberモードでも画像は使う場合あり)
+
+  var $ = function(id){ return document.getElementById(id); };
+  var screens = { home: $("screen-home"), admin: $("screen-admin"), game: $("screen-game") };
+  function show(name){
+    Object.keys(screens).forEach(function(k){ screens[k].classList.toggle("active", k === name); });
+    window.scrollTo(0, 0);
+  }
+  var toastTimer = null;
+  function toast(msg){
+    var t = $("toast"); t.textContent = msg; t.classList.add("show");
+    clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.classList.remove("show"); }, 2200);
+  }
+
+  /* ---------- サンプル画像（内蔵） ---------- */
+  function makeSample(){
+    var c = document.createElement("canvas"); c.width = 540; c.height = 900;
+    var g = c.getContext("2d");
+    var grad = g.createLinearGradient(0, 0, 540, 900);
+    grad.addColorStop(0, "#3b2d5c"); grad.addColorStop(.55, "#7a3d6e"); grad.addColorStop(1, "#e2703a");
+    g.fillStyle = grad; g.fillRect(0, 0, 540, 900);
+    g.globalAlpha = .5; g.fillStyle = "#ffd166";
+    g.beginPath(); g.arc(430, 150, 62, 0, 7); g.fill();
+    g.globalAlpha = .85; g.fillStyle = "#fff3f8";
+    for (var i = 0; i < 42; i++){
+      g.beginPath();
+      g.arc(Math.random() * 540, Math.random() * 900, 2 + Math.random() * 3, 0, 7); g.fill();
+    }
+    g.globalAlpha = 1; g.fillStyle = "#2b2140";
+    g.beginPath(); g.moveTo(0, 900); g.lineTo(180, 560); g.lineTo(330, 900); g.fill();
+    g.fillStyle = "#241a38";
+    g.beginPath(); g.moveTo(220, 900); g.lineTo(400, 620); g.lineTo(540, 900); g.fill();
+    g.fillStyle = "#ffffff"; g.font = "800 44px sans-serif"; g.textAlign = "center";
+    g.fillText("SAMPLE", 270, 460);
+    g.font = "600 22px sans-serif"; g.fillStyle = "#ffe3ef";
+    g.fillText("すきな画像を上げて遊んでね", 270, 500);
+    return c.toDataURL("image/jpeg", .85);
+  }
+  var SAMPLE_SRC = makeSample();
+  function allEntries(){
+    var list = [{ id: "sample", src: SAMPLE_SRC, name: "サンプル", builtin: true }];
+    return list.concat(stock);
+  }
+
+  /* ---------- ストック ---------- */
+  function loadStock(){
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      var arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr.filter(function(x){ return x && x.src; }).slice(0, 3) : [];
+    } catch(e){ return []; }
+  }
+  function saveStock(){
+    try { localStorage.setItem(LS_KEY, JSON.stringify(stock)); }
+    catch(e){ toast("保存できませんでした（容量オーバーかも）"); }
+  }
+  function selectedEntry(){
+    var list = allEntries();
+    for (var i = 0; i < list.length; i++) if (list[i].id === selectedId) return list[i];
+    return list[0];
+  }
+
+  function renderHome(){
+    var row = $("stock-row"); row.innerHTML = "";
+    var list = allEntries();
+    if (!list.some(function(x){ return x.id === selectedId; })) selectedId = list[0].id;
+    list.forEach(function(ent){
+      var d = document.createElement("div");
+      d.className = "stock-item" + (ent.id === selectedId ? " selected" : "");
+      var img = document.createElement("img"); img.src = ent.src; img.alt = ent.name || "";
+      var tag = document.createElement("div"); tag.className = "tag"; tag.textContent = ent.name || "画像";
+      d.appendChild(img); d.appendChild(tag);
+      d.addEventListener("click", function(){ selectedId = ent.id; renderHome(); });
+      row.appendChild(d);
+    });
+    for (var k = list.length; k < 4; k++){
+      var e = document.createElement("div"); e.className = "stock-empty";
+      e.textContent = k === list.length ? "管理画面から追加できます" : "";
+      row.appendChild(e);
+    }
+  }
+
+  function renderAdmin(){
+    var box = $("admin-list"); box.innerHTML = "";
+    if (stock.length === 0){
+      var p = document.createElement("p"); p.className = "note";
+      p.textContent = "まだストックがありません。下のボタンから画像を上げてください。";
+      box.appendChild(p);
+    }
+    stock.forEach(function(ent, idx){
+      var d = document.createElement("div"); d.className = "admin-item";
+      var img = document.createElement("img"); img.src = ent.src; img.alt = "";
+      var grow = document.createElement("div"); grow.className = "grow";
+      grow.textContent = "ストック " + (idx + 1);
+      var del = document.createElement("button"); del.className = "del-btn"; del.textContent = "削除";
+      del.addEventListener("click", function(){
+        stock = stock.filter(function(x){ return x.id !== ent.id; });
+        if (selectedId === ent.id) selectedId = null;
+        saveStock(); renderAdmin(); renderHome(); toast("削除しました");
+      });
+      d.appendChild(img); d.appendChild(grow); d.appendChild(del);
+      box.appendChild(d);
+    });
+  }
+
+  function handleUpload(file){
+    if (!file) return;
+    if (stock.length >= 3){ toast("ストックは3種類までです。先に1つ削除してください"); return; }
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function(){
+      // 9:15 に中心トリミングして 540x900 で保存
+      var TW = 540, TH = 900, target = TW / TH; // 0.6
+      var sw = img.naturalWidth, sh = img.naturalHeight, sr = sw / sh;
+      var sx, sy, cw, ch;
+      if (sr > target){ ch = sh; cw = sh * target; sx = (sw - cw) / 2; sy = 0; }
+      else { cw = sw; ch = sw / target; sx = 0; sy = (sh - ch) / 2; }
+      var c = document.createElement("canvas"); c.width = TW; c.height = TH;
+      c.getContext("2d").drawImage(img, sx, sy, cw, ch, 0, 0, TW, TH);
+      URL.revokeObjectURL(url);
+      var src = c.toDataURL("image/jpeg", .85);
+      stock.unshift({ id: "u" + Date.now(), src: src, name: "アップロード画像" });
+      selectedId = stock[0].id;
+      saveStock(); renderAdmin(); renderHome();
+      toast("ストックしました（9:15にトリミング済み）");
+    };
+    img.onerror = function(){ URL.revokeObjectURL(url); toast("画像を読み込めませんでした"); };
+    img.src = url;
+  }
+
+  /* ---------- パズル ---------- */
+  function neighbors(slot){
+    var r = Math.floor(slot / COLS), c = slot % COLS, out = [];
+    if (r > 0) out.push(slot - COLS);
+    if (r < ROWS - 1) out.push(slot + COLS);
+    if (c > 0) out.push(slot - 1);
+    if (c < COLS - 1) out.push(slot + 1);
+    return out;
+  }
+  function resetState(){
+    slotOfTile = []; tileAtSlot = [];
+    for (var i = 0; i < N; i++){ slotOfTile[i] = i; tileAtSlot[i] = i; }
+  }
+  function shuffle(){
+    resetState();
+    var prevBlank = -1;
+    for (var step = 0; step < 140; step++){
+      var blankSlot = slotOfTile[BLANK];
+      var cand = neighbors(blankSlot).filter(function(s){ return s !== prevBlank; });
+      var pick = cand[Math.floor(Math.random() * cand.length)];
+      swapWithBlank(pick, true);
+      prevBlank = blankSlot;
+    }
+    if (isSolved()) shuffle();
+  }
+  function swapWithBlank(slot, silent){
+    var blankSlot = slotOfTile[BLANK];
+    var tile = tileAtSlot[slot];
+    tileAtSlot[blankSlot] = tile; tileAtSlot[slot] = BLANK;
+    slotOfTile[tile] = blankSlot; slotOfTile[BLANK] = slot;
+    if (!silent) layoutTiles();
+  }
+  function isSolved(){
+    for (var i = 0; i < N; i++) if (slotOfTile[i] !== i) return false;
+    return true;
+  }
+
+  var tileEls = [];
+  function buildBoard(){
+    var board = $("board"); board.innerHTML = ""; tileEls = [];
+    for (var t = 0; t < N; t++){
+      var d = document.createElement("div");
+      d.className = "tile" + (t === BLANK ? " blank" : "") + (mode === "number" ? " numonly" : "");
+      var face = document.createElement("div"); face.className = "face";
+      var homeR = Math.floor(t / COLS), homeC = t % COLS;
+      if (mode !== "number" && currentImage){
+        face.style.backgroundImage = "url(" + currentImage + ")";
+        face.style.backgroundSize = (COLS * 100) + "% " + (ROWS * 100) + "%";
+        face.style.backgroundPosition =
+          (COLS > 1 ? (homeC / (COLS - 1)) * 100 : 0) + "% " +
+          (ROWS > 1 ? (homeR / (ROWS - 1)) * 100 : 0) + "%";
+      }
+      if (mode === "both"){
+        var num = document.createElement("div"); num.className = "num"; num.textContent = t + 1;
+        face.appendChild(num);
+      }
+      if (mode === "number" && t !== BLANK){
+        var big = document.createElement("div"); big.className = "bignum"; big.textContent = t + 1;
+        face.appendChild(big);
+      }
+      d.appendChild(face);
+      (function(tile){
+        d.addEventListener("click", function(){ onTileTap(tile); });
+      })(t);
+      board.appendChild(d); tileEls[t] = d;
+    }
+    // 完成オーバーレイ
+    var ov = document.createElement("div"); ov.className = "complete-overlay"; ov.id = "complete-overlay";
+    if (mode !== "number" && currentImage){
+      var full = document.createElement("img"); full.className = "full"; full.src = currentImage; full.alt = "";
+      ov.appendChild(full);
+    }
+    var box = document.createElement("div"); box.className = "complete-box";
+    box.innerHTML = "<div class='big'>🎉パズル完成！🎉</div><div class='moves-line' id='complete-moves'></div>";
+    var again = document.createElement("button"); again.className = "btn small"; again.textContent = "もう一度あそぶ";
+    again.addEventListener("click", startGame);
+    var home = document.createElement("button"); home.className = "btn ghost small"; home.textContent = "ホームへ戻る";
+    home.style.marginTop = "8px";
+    home.addEventListener("click", function(){ playing = false; show("home"); });
+    box.appendChild(again); box.appendChild(home);
+    ov.appendChild(box);
+    board.appendChild(ov);
+    layoutTiles();
+  }
+  function layoutTiles(){
+    for (var t = 0; t < N; t++){
+      var s = slotOfTile[t];
+      var r = Math.floor(s / COLS), c = s % COLS;
+      tileEls[t].style.transform = "translate(" + (c * 100) + "%, " + (r * 100) + "%)";
+    }
+  }
+  function onTileTap(tile){
+    if (!playing || tile === BLANK) return;
+    var blankSlot = slotOfTile[BLANK];
+    var s = slotOfTile[tile];
+    if (neighbors(blankSlot).indexOf(s) === -1) return;
+    swapWithBlank(s, false);
+    moves++; $("move-count").textContent = moves;
+    if (isSolved()){
+      playing = false;
+      $("complete-moves").textContent = moves + "手で解けた";
+      setTimeout(function(){ $("complete-overlay").classList.add("show"); }, 220);
+    }
+  }
+  function startGame(){
+    var ent = selectedEntry();
+    currentImage = ent ? ent.src : null;
+    moves = 0; $("move-count").textContent = "0";
+    $("game-mode-label").textContent = MODE_LABEL[mode];
+    shuffle();
+    buildBoard();
+    playing = true;
+    show("game");
+  }
+
+  /* ---------- イベント ---------- */
+  $("modes").addEventListener("click", function(e){
+    var b = e.target.closest(".mode-btn"); if (!b) return;
+    mode = b.getAttribute("data-mode");
+    document.querySelectorAll(".mode-btn").forEach(function(x){
+      x.classList.toggle("selected", x === b);
+    });
+  });
+  $("btn-start").addEventListener("click", startGame);
+  $("btn-reshuffle").addEventListener("click", function(){
+    moves = 0; $("move-count").textContent = "0";
+    shuffle(); buildBoard(); playing = true;
+  });
+  $("btn-game-home").addEventListener("click", function(){ playing = false; show("home"); });
+  $("btn-to-admin").addEventListener("click", function(){ renderAdmin(); show("admin"); });
+  $("btn-admin-back").addEventListener("click", function(){ renderHome(); show("home"); });
+  $("file-input").addEventListener("change", function(e){
+    handleUpload(e.target.files && e.target.files[0]);
+    e.target.value = "";
+  });
+
+  renderHome();
+})();
+</script>
+</body>
+</html>
